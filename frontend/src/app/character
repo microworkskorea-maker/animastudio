@@ -5,7 +5,7 @@ import { useStudioStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 
 const PRESET_CHARACTERS = [
-  { emoji: '🐰', name: '라비', role: '마케터 토끼', personality: '발랄, 친근, 호기심', speechStyle: '친근하고 밝은 어투' },
+  { emoji: '🐰', name: '웍스', role: '글로벌 소싱 전문가 토끼', personality: '발랄, 친근, 호기심', speechStyle: '친근하고 밝은 어투' },
   { emoji: '🦊', name: '폭시', role: '전략가 여우', personality: '영리, 세련, 자신감', speechStyle: '논리적이고 세련된 어투' },
   { emoji: '🐻', name: '베어', role: '든든한 곰', personality: '신뢰, 따뜻함, 안정감', speechStyle: '따뜻하고 든든한 어투' },
   { emoji: '🦦', name: '오티', role: '트렌디 수달', personality: '유머, 개성, MZ감성', speechStyle: '유쾌하고 트렌디한 어투' },
