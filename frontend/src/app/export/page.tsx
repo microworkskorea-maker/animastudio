@@ -1,13 +1,10 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { useStudioStore } from '@/lib/store'
-import { useState } from 'react'
-import toast from 'react-hot-toast'
 
 export default function ExportPage() {
   const router = useRouter()
-  const { project, setExports } = useStudioStore()
-  const [loading, setLoading] = useState(false)
+  const { project } = useStudioStore()
 
   const checklist = [
     { label: '시나리오', done: project.scenarioResult != null },
@@ -17,71 +14,52 @@ export default function ExportPage() {
     { label: '더빙 & 자막', done: project.voiceTracks != null },
   ]
 
-  async function handleCompose() {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/backend/export/compose', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: project.projectId,
-          clips: project.videoClips || [],
-          tracks: project.voiceTracks || [],
-          subtitles: project.subtitles || [],
-          voiceSettings: { subtitleStyle: 'white-outline', subtitlePosition: 'bottom' }
-        })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setExports(data.data)
-        toast.success('영상 합성 완료!')
-      }
-    } catch(e) {
-      toast.error('오류가 발생했습니다')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const exports = project.exports || []
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="bg-cream-50 rounded-2xl border border-cream-300 p-6 shadow-sm mb-5">
-        <h2 className="font-display text-lg text-ink-900 mb-5">📦 최종 내보내기</h2>
-        <div className="bg-cream-100 rounded-xl p-4 mb-6 space-y-2">
+    <div style={{maxWidth: '600px', margin: '0 auto', padding: '24px'}}>
+      <div style={{background: 'white', borderRadius: '16px', border: '1px solid #e8dfc2', padding: '24px', marginBottom: '16px'}}>
+        <h2 style={{fontSize: '20px', fontWeight: '600', marginBottom: '20px'}}>📦 최종 내보내기</h2>
+        <div style={{background: '#f9f6ee', borderRadius: '12px', padding: '16px', marginBottom: '20px'}}>
           {checklist.map(function(item) {
             return (
-              <div key={item.label} className="flex items-center gap-2 text-sm">
-                <span className={item.done ? 'text-forest-500' : 'text-ink-300'}>{item.done ? '✅' : '○'}</span>
-                <span className={item.done ? 'text-ink-900' : 'text-ink-400'}>{item.label}</span>
+              <div key={item.label} style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '14px'}}>
+                <span style={{color: item.done ? '#127545' : '#b8b8b8'}}>{item.done ? '✅' : '○'}</span>
+                <span style={{color: item.done ? '#1a1a1a' : '#b8b8b8'}}>{item.label}</span>
               </div>
             )
           })}
         </div>
-        {project.exports && project.exports.length > 0 ? (
-          <div className="space-y-3">
-            {project.exports.map(function(asset) {
+
+        {exports.length > 0 ? (
+          <div>
+            {exports.map(function(asset) {
               return (
-                <div key={asset.assetId} className="flex items-center gap-3 p-3 bg-white border border-cream-300 rounded-xl">
-                  <div className="text-2xl">🎬</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-ink-900">{asset.label}</div>
-                    <div className="text-xs text-ink-400">{asset.filename}</div>
+                <div key={asset.assetId} style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '14px', background: '#f9f6ee', borderRadius: '12px', marginBottom: '8px'}}>
+                  <div style={{fontSize: '28px'}}>🎬</div>
+                  <div style={{flex: 1}}>
+                    <div style={{fontWeight: '500', fontSize: '14px'}}>{asset.label}</div>
+                    <div style={{color: '#787878', fontSize: '12px'}}>{asset.filename}</div>
                   </div>
                   {asset.downloadUrl ? (
-                    <a href={asset.downloadUrl} download className="px-3 py-1.5 rounded-lg bg-forest-600 text-white text-xs font-medium hover:bg-forest-700">다운로드</a>
-                  ) : null}
+                    <a href={asset.downloadUrl} download style={{background: '#127545', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', textDecoration: 'none', fontWeight: '500'}}>
+                      ⬇️ 다운로드
+                    </a>
+                  ) : (
+                    <span style={{color: '#787878', fontSize: '12px'}}>준비 중</span>
+                  )}
                 </div>
               )
             })}
           </div>
         ) : (
-          <button onClick={handleCompose} disabled={loading} className="w-full py-3 rounded-xl bg-forest-600 text-white text-sm font-medium hover:bg-forest-700 disabled:bg-ink-200 disabled:text-ink-400">
-            {loading ? '⏳ 합성 중...' : '🎬 최종 영상 합성하기'}
-          </button>
+          <div style={{textAlign: 'center', padding: '20px', color: '#787878', fontSize: '14px'}}>
+            더빙 & 자막 단계를 완료하면 여기에 파일이 나타나요
+          </div>
         )}
       </div>
-      <div className="flex justify-end">
-        <button onClick={function() { router.push('/voice') }} className="px-5 py-2.5 rounded-xl border border-cream-300 text-sm text-ink-600 hover:bg-cream-100">← 더빙 & 자막</button>
+      <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+        <button onClick={function() { router.push('/voice') }} style={{padding: '10px 20px', borderRadius: '12px', border: '1px solid #e8dfc2', background: 'white', cursor: 'pointer', fontSize: '14px'}}>← 더빙 & 자막</button>
       </div>
     </div>
   )
