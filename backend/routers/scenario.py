@@ -1,11 +1,9 @@
 """
-시나리오 생성 라우터
-====================================
-Gemini 2.0 Flash API를 호출하여
-장면별 시나리오 + 대사를 자동 생성합니다.
+시나리오 생성 라우터 - gemini-2.5-flash
 """
 import json
 import os
+import re
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -47,39 +45,24 @@ def calc_scenes(duration: int) -> int:
  
 def build_prompt(inp: ScenarioInput) -> str:
     scene_count = calc_scenes(inp.duration)
-    core_line = f"\n- 반드시 포함할 핵심 대사: '{inp.coreDialogue}'" if inp.coreDialogue else ""
+    core_line = f"\n- 반드시 포함할 핵심 대사: {inp.coreDialogue}" if inp.coreDialogue else ""
  
-    return f"""
-당신은 동물 캐릭터를 활용한 기업 홍보 영상 전문 작가입니다.
-아래 요구사항을 바탕으로 {inp.duration}초짜리 영상 시나리오를 작성해주세요.
+    return f"""동물 캐릭터 기업 홍보 영상 시나리오를 JSON으로만 작성하세요.
  
-[요구사항]
-- 영상 주제: {inp.topic}
-- 핵심 메시지: {inp.keyMessage}
-- 톤 & 무드: {inp.mood}
-- 총 장면 수: {scene_count}개{core_line}
+주제: {inp.topic}
+핵심 메시지: {inp.keyMessage}
+톤: {inp.mood}
+장면 수: {scene_count}개
+영상 길이: {inp.duration}초{core_line}
  
-[출력 형식]
-반드시 아래 JSON 형식으로만 응답하세요. 마크다운 코드블록 없이 순수 JSON만 출력합니다.
+규칙:
+1. JSON만 출력. 다른 텍스트 금지.
+2. 마크다운 코드블록 금지.
+3. 모든 장면에 동물 캐릭터 등장.
+4. 마지막 장면에 브랜드 클로징 포함.
  
-{{
-  "scenes": [
-    {{
-      "sceneNumber": 1,
-      "timeRange": "0-{inp.duration // scene_count}초",
-      "description": "장면 내용을 2-3문장으로 설명. 동물 캐릭터의 행동과 배경을 구체적으로.",
-      "dialogue": "캐릭터가 말하는 대사. 자연스럽고 {inp.mood} 톤으로.",
-      "cameraNote": "카메라 앵글/이동 지시"
-    }}
-  ],
-  "totalDuration": {inp.duration}
-}}
- 
-[중요 규칙]
-1. 모든 장면에 동물 캐릭터가 주인공으로 등장해야 합니다
-2. 마지막 장면에는 반드시 브랜드/제품 클로징이 포함되어야 합니다
-3. JSON 이외의 텍스트는 절대 출력하지 마세요
-""".strip()
+출력 형식:
+{{"scenes":[{{"sceneNumber":1,"timeRange":"0-10초","description":"장면설명","dialogue":"대사","cameraNote":"카메라지시"}}],"totalDuration":{inp.duration}}}"""
  
  
 @router.post("/generate", response_model=dict)
@@ -92,21 +75,21 @@ async def generate_scenario(inp: ScenarioInput):
         response = await model.generate_content_async(
             prompt,
             generation_config={
-                "temperature": 0.8,
+                "temperature": 0.7,
                 "max_output_tokens": 2048,
             }
         )
  
-        raw_json = response.text.strip()
+        raw = response.text.strip()
+        raw = re.sub(r'```json\s*', '', raw)
+        raw = re.sub(r'```\s*', '', raw)
+        raw = raw.strip()
  
-        try:
-            data = json.loads(raw_json)
-        except json.JSONDecodeError:
-            import re
-            match = re.search(r'\{.*\}', raw_json, re.DOTALL)
-            if not match:
-                raise HTTPException(status_code=500, detail="Gemini 응답 파싱 실패")
-            data = json.loads(match.group())
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            raw = match.group()
+ 
+        data = json.loads(raw)
  
         result = ScenarioResult(
             scenes=[SceneScript(**s) for s in data["scenes"]],
@@ -116,6 +99,8 @@ async def generate_scenario(inp: ScenarioInput):
  
         return {"success": True, "data": result.model_dump()}
  
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"JSON 파싱 실패: {str(e)}")
     except HTTPException:
         raise
     except Exception as e:
